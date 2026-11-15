@@ -1,7 +1,19 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const envUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+
+export const isSupabaseConfigured = Boolean(envUrl && envKey);
+
+if (!isSupabaseConfigured) {
+  console.warn(
+    '[MRI] VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY are not set. The site will render, but data features (login, dashboard, forms) are disabled.'
+  );
+}
+
+// Fall back to placeholder values so createClient never throws and blanks the page.
+const supabaseUrl = envUrl || 'https://placeholder.supabase.co';
+const supabaseAnonKey = envKey || 'placeholder-anon-key';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
@@ -56,6 +68,7 @@ export type SiteContentRow = {
 export type SiteContent = Record<string, unknown>;
 
 export async function fetchSiteContent(): Promise<SiteContent> {
+  if (!isSupabaseConfigured) return {};
   const { data, error } = await supabase.from('site_content').select('section, content');
   if (error || !data) return {};
   const result: SiteContent = {};
@@ -85,7 +98,8 @@ export async function uploadSiteImage(file: File, path: string): Promise<string 
 export function siteImageUrl(path: string): string {
   if (!path) return '';
   if (path.startsWith('http') || path.startsWith('/')) return path;
-  const base = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/site-images/`;
+  if (!isSupabaseConfigured) return '';
+  const base = `${envUrl}/storage/v1/object/public/site-images/`;
   return `${base}${path}`;
 }
 
